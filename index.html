@@ -1,0 +1,693 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curso de NR-12 - Segurança no Trabalho em Máquinas e Equipamentos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            background-color: #F3F4F6;
+            scroll-behavior: smooth;
+        }
+        .sidebar {
+            position: sticky;
+            top: 0.5rem;
+            max-height: calc(100vh - 5rem);
+            overflow-y: auto;
+            background-color: #FFFFFF;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.2em;
+        }
+        #content-area {
+            transition: opacity 0.3s ease;
+        }
+        #content-area.fade {
+            opacity: 0;
+        }
+        .quiz-option {
+            cursor: pointer;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            background-color: #e5e7eb;
+            border: 1px solid #d1d5db;
+        }
+        .quiz-option:hover {
+            background-color: #d1d5db;
+        }
+        .quiz-option.selected {
+            background-color: #3b82f6 !important;
+            color: #ffffff !important;
+            border-color: #2563eb !important;
+        }
+        .quiz-option.correct {
+            background-color: #22c55e !important;
+            color: #ffffff !important;
+            border-color: #16a34a !important;
+        }
+        .quiz-option.incorrect {
+            background-color: #ef4444 !important;
+            color: #ffffff !important;
+            border-color: #dc2626 !important;
+        }
+        .quiz-option:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .explanation {
+            padding: 0.5rem;
+            margin-top: 0.25rem;
+            margin-bottom: 1rem;
+            border-radius: 0.25rem;
+            background-color: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+        .progress-container {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: #fff;
+            padding: 0.5rem 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .progress-bar {
+            height: 1rem;
+            background: #f97316;
+            transition: width 0.3s ease;
+            border-radius: 0.25rem;
+        }
+        .action-button {
+            background-color: #F97316;
+            color: white;
+            font-weight: 600;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s ease;
+        }
+        .action-button:hover {
+            background-color: #EA580C;
+        }
+        .action-button:disabled {
+            background: #d1d5db !important;
+            color: #6b7280;
+            cursor: not-allowed;
+        }
+        #congratulations-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            text-align: center;
+            max-width: 28rem;
+            pointer-events: none;
+        }
+        #congratulations-message.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #certificate-form-container {
+            display: none;
+        }
+        #certificate-form-container.show {
+            display: block;
+        }
+        #content-area h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #1E3A8A;
+            display: flex;
+            align-items: center;
+        }
+        #content-area h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #1E40AF;
+        }
+        #content-area p {
+            margin-bottom: 1rem;
+            color: #4B5563;
+            line-height: 1.625;
+        }
+        #content-area ul {
+            list-style-type: disc;
+            margin-left: 1.25rem;
+            margin-bottom: 1rem;
+            color: #4B5563;
+        }
+        .social-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                max-height: none;
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+            .flex-col.md\:flex-row {
+                flex-direction: column;
+            }
+            .social-links {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+    <div class="progress-container">
+        <div class="container mx-auto px-6">
+            <p class="text-sm font-semibold mb-1">Progresso dos Módulos: <span id="progress-text">0%</span></p>
+            <div class="w-full bg-gray-200 rounded">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-gradient-to-r from-blue-800 to-blue-600 text-white py-4 shadow-md">
+        <div class="container mx-auto px-6">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold">Curso de NR-20: Segurança com Inflamáveis e Combustíveis</h1>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-6 py-8 flex flex-col md:flex-row gap-6">
+        <aside class="md:w-1/3">
+            <div class="sidebar">
+                <h2 class="text-xl font-semibold mb-3 flex items-center text-gray-700">
+                    <i class="fas fa-book-open w-6 h-6 mr-2 text-orange-500"></i>
+                    Selecionar Módulo
+                </h2>
+                <select id="module-selector" class="w-full p-3 border border-gray-300 rounded bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-base">
+                    <option value="">Escolha um Módulo</option>
+                </select>
+            </div>
+        </aside>
+
+        <main class="md:w-2/3 bg-white p-6 rounded-lg shadow-md">
+            <div id="content-area"></div>
+        </main>
+    </div>
+
+    <div id="congratulations-message" class="hidden">
+        <h2 class="text-2xl font-bold text-orange-600 mb-4">Parabéns!</h2>
+        <p class="text-lg mb-4">Você concluiu o curso com sucesso e foi aprovado na prova final!</p>
+        <button id="close-congrats" class="action-button">Fechar</button>
+    </div>
+
+    <footer class="bg-blue-900 text-white py-8 mt-12">
+        <div class="container mx-auto px-6 text-center">
+            <div id="certificate-form-container" class="max-w-md mx-auto mb-8 text-left bg-blue-800 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-3 text-white">Solicite seu Certificado</h3>
+                <p class="text-sm mb-4 text-gray-300">Preencha os campos abaixo para receber seu certificado de conclusão:</p>
+                <div class="space-y-4">
+                    <div>
+                        <label for="full-name" class="block text-sm font-medium text-gray-200">Nome Completo</label>
+                        <input type="text" id="full-name" required class="w-full p-2 border border-blue-700 rounded bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label for="cpf" class="block text-sm font-medium text-gray-200">CPF</label>
+                        <input type="text" id="cpf" required placeholder="123.456.789-00" class="w-full p-2 border border-blue-700 rounded bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 placeholder-gray-400">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-200">E-mail</label>
+                        <input type="email" id="email" required class="w-full p-2 border border-blue-700 rounded bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-orange-500 placeholder-gray-400">
+                    </div>
+                    <button id="submit-certificate" class="action-button w-full">Enviar Solicitação</button>
+                </div>
+            </div>
+
+            <p class="text-base mb-2">© 2019 Curso de Bombeiro Civil / Brigadista. Todos os direitos reservados.</p>
+            <div class="text-sm mb-4 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+                <span>Uniformizando profissionais desde 2019</span>
+                <a href="https://instrutormedeiros.github.io/fardamento-acampamento/" target="_blank" class="font-semibold hover:underline">MEDEIROS ARTIGOS MILITARES</a>
+            </div>
+            
+            <div class="flex justify-center gap-4 md:gap-6 social-links">
+                <a href="https://www.instagram.com/coordenadormedeiros" class="flex items-center text-gray-300 hover:text-orange-400 social-link transition-colors" target="_blank">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.332.014 7.052.072 2.95.227.228 2.996.073 7.052.014 8.332 0 8.741 0 12c0 3.259.014 3.668.072 4.948.225 4.053 2.992 6.771 7.048 6.927 1.28.058 1.689.072 4.948.072s3.668-.014 4.948-.072c4.054-.156 6.772-2.874 6.927-6.93.058-1.28.072-1.689.072-4.948s-.014-3.668-.072-4.948c-.156-4.054-2.874-6.772-6.93-6.927C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zm0 10.162a3.999 3.999 0 110-7.998 3.999 3.999 0 010 7.998zm6.406-11.845a1.44 1.44 0 11-2.88 0 1.44 1.44 0 012.88 0z"/></svg>
+                    @coordenadormedeiros
+                </a>
+                <a href="https://www.linkedin.com/in/chefemedeiros" class="flex items-center text-gray-300 hover:text-orange-400 social-link transition-colors" target="_blank">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0zM7.12 20.45H3.56V9.06h3.56v11.39zM5.34 7.67c-1.14 0-2.06-.92-2.06-2.06 0-1.14.92-2.06 2.06-2.06s2.06.92 2.06 2.06c0 1.14-.92 2.06-2.06 2.06zm15.11 12.78h-3.56v-5.56c0-1.33-.03-3.03-1.85-3.03-1.85 0-2.13 1.44-2.13 2.94v5.65H9.3V9.06h3.41v1.55h.05c.47-.89 1.62-1.83 3.34-1.83 3.57 0 4.23 2.35 4.23 5.41v6.26z"/></svg>
+                    chefemedeiros
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const totalModules = 10;
+        let completedModules = JSON.parse(localStorage.getItem('gateBombeiroNR20CompletedModules')) || [];
+        let quizAnswers = JSON.parse(localStorage.getItem('gateBombeiroNR20QuizAnswers')) || {};
+
+        const correctAnswers = {
+            'module1-q1': 'a', 'module1-q2': 'b', 'module1-q3': 'c', 'module1-q4': 'b', 'module1-q5': 'b',
+            'module2-q1': 'b', 'module2-q2': 'c', 'module2-q3': 'b', 'module2-q4': 'b', 'module2-q5': 'c',
+            'module3-q1': 'c', 'module3-q2': 'b', 'module3-q3': 'b', 'module3-q4': 'c', 'module3-q5': 'b',
+            'module4-q1': 'b', 'module4-q2': 'c', 'module4-q3': 'c', 'module4-q4': 'b', 'module4-q5': 'c',
+            'module5-q1': 'b', 'module5-q2': 'c', 'module5-q3': 'c', 'module5-q4': 'c', 'module5-q5': 'b',
+            'module6-q1': 'b', 'module6-q2': 'c', 'module6-q3': 'c', 'module6-q4': 'c', 'module6-q5': 'b',
+            'module7-q1': 'b', 'module7-q2': 'b', 'module7-q3': 'b', 'module7-q4': 'b', 'module7-q5': 'b',
+            'module8-q1': 'b', 'module8-q2': 'c', 'module8-q3': 'b', 'module8-q4': 'b', 'module8-q5': 'c',
+            'module9-q1': 'c', 'module9-q2': 'b', 'module9-q3': 'c', 'module9-q4': 'c', 'module9-q5': 'c',
+            'module10-q1': 'c', 'module10-q2': 'c', 'module10-q3': 'b', 'module10-q4': 'c', 'module10-q5': 'b',
+        };
+
+        const moduleContent = {
+            initial: { 
+                title: "Bem-vindo ao Curso de NR-20!", 
+                iconClass: "fas fa-fire", 
+                content: `<p class="text-gray-700 mb-3">Do conhecimento da chama à extinção do risco: torne-se um especialista em segurança com inflamáveis.</p><p class="text-gray-700 mb-3">Este curso de 10 módulos é um mergulho profundo no universo da NR-20, feito sob medida para o bombeiro civil que enfrenta os cenários mais voláteis. De postos de gasolina a refinarias, você aprenderá a identificar, classificar, prevenir e combater os riscos associados a inflamáveis e combustíveis. Cada módulo é um passo em direção à maestria tática, transformando seu conhecimento em uma poderosa ferramenta de proteção, fundamental em um setor onde incêndios e explosões representam 20% dos acidentes industriais.</p><p class="text-gray-700 mb-3">Público-alvo: Bombeiros Civis que atuam na prevenção e resposta a emergências em indústrias, eventos e postos de combustíveis. Carga Horária: 20 horas. Certificação: Certificado de conclusão "Curso Teórico", assinado por um técnico em segurança do trabalho, emitido após aprovação mínima de 80% nos testes.</p>` 
+            },
+            module1: { 
+                id: "module1", 
+                title: "1. Fundamentos da NR-20: Escopo, Classes e Aplicação", 
+                iconClass: "fas fa-fire", 
+                content: `<p>Bem-vindo ao curso da NR-20. Este módulo inicial é a sua porta de entrada para o universo regulatório da segurança com inflamáveis e combustíveis. A Norma Regulamentadora 20 estabelece os requisitos mínimos para a gestão da segurança no trabalho em todas as atividades envolvendo esses materiais, desde a extração até o manuseio final.</p><p>A norma é estruturada em três classes de instalações, que determinam o nível de exigência e treinamento: básico, intermediário e avançado. Este curso foi desenhado com foco no nível básico, que é o conhecimento essencial e adequado para as operações de prevenção e resgate executadas por bombeiros civis.</p><p>A aplicação prática deste conhecimento é vasta e diária para um bombeiro. Um dos cenários mais comuns é a atuação em postos de gasolina, onde um simples vazamento de combustível pode escalar para um incidente de grandes proporções se não for gerenciado com a técnica correta. O domínio da NR-20 é, portanto, uma ferramenta indispensável para proteger vidas e o patrimônio.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. Qual é o objetivo principal da NR-20?</p><div class="quiz-options-group" data-module-id="module1"><div class="quiz-option" data-question="module1-q1" data-answer="a">a) Estabelecer requisitos para segurança com inflamáveis e combustíveis.</div><div class="quiz-option" data-question="module1-q1" data-answer="b">b) Definir os procedimentos para controle de máquinas pesadas.</div><div class="quiz-option" data-question="module1-q1" data-answer="c">c) Padronizar as normas de ergonomia em ambientes de trabalho.</div></div><p id="explanation-module1-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Quantas classes de instalações a NR-20 possui?</p><div class="quiz-options-group" data-module-id="module1"><div class="quiz-option" data-question="module1-q2" data-answer="a">a) Duas classes.</div><div class="quiz-option" data-question="module1-q2" data-answer="b">b) Três classes: básico, intermediário e avançado.</div><div class="quiz-option" data-question="module1-q2" data-answer="c">c) Quatro classes.</div></div><p id="explanation-module1-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Qual nível de classificação da NR-20 é o foco deste curso?</p><div class="quiz-options-group" data-module-id="module1"><div class="quiz-option" data-question="module1-q3" data-answer="a">a) Nível Intermediário.</div><div class="quiz-option" data-question="module1-q3" data-answer="b">b) Nível Avançado.</div><div class="quiz-option" data-question="module1-q3" data-answer="c">c) Nível Básico, adequado para bombeiros civis.</div></div><p id="explanation-module1-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. Qual é um exemplo prático de local onde um bombeiro civil aplica os conhecimentos da NR-20?</p><div class="quiz-options-group" data-module-id="module1"><div class="quiz-option" data-question="module1-q4" data-answer="a">a) Em escritórios comerciais.</div><div class="quiz-option" data-question="module1-q4" data-answer="b">b) Em postos de gasolina, para gerenciar riscos de vazamentos.</div><div class="quiz-option" data-question="module1-q4" data-answer="c">c) Em escolas de ensino fundamental.</div></div><p id="explanation-module1-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Incêndios e explosões com inflamáveis representam qual percentual dos acidentes industriais?</p><div class="quiz-options-group" data-module-id="module1"><div class="quiz-option" data-question="module1-q5" data-answer="a">a) 10%.</div><div class="quiz-option" data-question="module1-q5" data-answer="b">b) 20%.</div><div class="quiz-option" data-question="module1-q5" data-answer="c">c) 50%.</div></div><p id="explanation-module1-q5" class="explanation hidden"></p>` 
+            },
+            module2: { 
+                id: "module2", 
+                title: "2. A Ciência do Risco: Ponto de Fulgor e Classificação de Líquidos", 
+                iconClass: "fas fa-flask", 
+                content: `<p>Para combater um inimigo, é preciso conhecê-lo profundamente. Este módulo mergulha na ciência por trás dos materiais perigosos, focando no conceito que define todo o risco: o ponto de fulgor.</p><p>O ponto de fulgor é a menor temperatura na qual um líquido libera vapores em quantidade suficiente para formar uma mistura inflamável com o ar. É o ponto em que, na presença de uma fonte de ignição, o material pode pegar fogo. A NR-20, em seu item 20.3, utiliza este conceito para fazer uma distinção crucial:</p><ul><li>Líquidos Inflamáveis: São aqueles que possuem um ponto de fulgor abaixo de 60°C. Isso significa que eles podem gerar vapores inflamáveis mesmo em temperaturas ambientes normais. O exemplo mais comum é a gasolina, que é altamente volátil e perigosa.</li><li>Líquidos Combustíveis: São aqueles que possuem um ponto de fulgor acima de 60°C. Eles precisam ser aquecidos para liberar vapores inflamáveis. O óleo diesel é o exemplo clássico deste grupo.</li></ul><p>Para um bombeiro em um cenário de resgate, como em tanques industriais, saber identificar se o material é inflamável ou combustível é o primeiro passo para uma operação segura. Um vazamento de gasolina (inflamável) apresenta um risco iminente e altíssimo de explosão, exigindo uma abordagem muito mais cautelosa do que um vazamento de diesel (combustível).</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. O que é "ponto de fulgor"?</p><div class="quiz-options-group" data-module-id="module2"><div class="quiz-option" data-question="module2-q1" data-answer="a">a) A temperatura em que um líquido ferve.</div><div class="quiz-option" data-question="module2-q1" data-answer="b">b) A menor temperatura em que um líquido libera vapores para formar uma mistura inflamável.</div><div class="quiz-option" data-question="module2-q1" data-answer="c">c) A temperatura máxima que um material pode atingir antes de explodir.</div></div><p id="explanation-module2-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Qual é a faixa de ponto de fulgor para um líquido ser classificado como "inflamável"?</p><div class="quiz-options-group" data-module-id="module2"><div class="quiz-option" data-question="module2-q2" data-answer="a">a) Acima de 60°C.</div><div class="quiz-option" data-question="module2-q2" data-answer="b">b) Exatamente 60°C.</div><div class="quiz-option" data-question="module2-q2" data-answer="c">c) Abaixo de 60°C.</div></div><p id="explanation-module2-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Qual dos seguintes líquidos é um exemplo de inflamável?</p><div class="quiz-options-group" data-module-id="module2"><div class="quiz-option" data-question="module2-q3" data-answer="a">a) Diesel.</div><div class="quiz-option" data-question="module2-q3" data-answer="b">b) Gasolina.</div><div class="quiz-option" data-question="module2-q3" data-answer="c">c) Água.</div></div><p id="explanation-module2-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. O óleo diesel é classificado como um líquido combustível porque:</p><div class="quiz-options-group" data-module-id="module2"><div class="quiz-option" data-question="module2-q4" data-answer="a">a) Seu ponto de fulgor é abaixo de 60°C.</div><div class="quiz-option" data-question="module2-q4" data-answer="b">b) Seu ponto de fulgor é acima de 60°C.</div><div class="quiz-option" data-question="module2-q4" data-answer="c">c) Ele não pega fogo.</div></div><p id="explanation-module2-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Qual item da NR-20 define a classificação de inflamáveis e combustíveis?</p><div class="quiz-options-group" data-module-id="module2"><div class="quiz-option" data-question="module2-q5" data-answer="a">a) Item 20.1.</div><div class="quiz-option" data-question="module2-q5" data-answer="b">b) Item 20.5.</div><div class="quiz-option" data-question="module2-q5" data-answer="c">c) Item 20.3.</div></div><p id="explanation-module2-q5" class="explanation hidden"></p>` 
+            },
+            module3: { 
+                id: "module3", 
+                title: "3. Propriedades Perigosas: Riscos de Explosão e Incêndio", 
+                iconClass: "fas fa-fire-extinguisher", 
+                content: `<p>Agora que sabemos classificar os líquidos, vamos aprofundar nos riscos que eles representam. Conforme o item 20.1.2 da norma, os principais perigos associados a inflamáveis são o risco de explosão e o risco de incêndio.</p><p>O risco de incêndio está presente sempre que houver o "triângulo do fogo": combustível (os vapores do líquido), comburente (oxigênio do ar) e uma fonte de ignição.</p><p>O risco de explosão é ainda mais perigoso e ocorre quando os vapores inflamáveis se acumulam em um ambiente confinado. Se uma fonte de ignição for introduzida, a queima rápida e violenta desses gases gera uma onda de pressão devastadora. É um risco iminente em resgates em locais como refinarias, onde um vazamento de gás pode ter consequências catastróficas.</p><p>É fundamental que o bombeiro, antes de qualquer intervenção, avalie os riscos químicos do cenário. Dados estatísticos reforçam essa necessidade: cerca de 25% dos incêndios em ambientes industriais envolvem inflamáveis que foram mal armazenados, criando as condições perfeitas para um desastre. Essa informação transforma a inspeção visual das condições de armazenamento em uma ferramenta de avaliação de risco para a equipe de resgate.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. De acordo com o item 20.1.2, qual é um dos principais riscos associados a inflamáveis?</p><div class="quiz-options-group" data-module-id="module3"><div class="quiz-option" data-question="module3-q1" data-answer="a">a) Risco de queda.</div><div class="quiz-option" data-question="module3-q1" data-answer="b">b) Risco de ruído.</div><div class="quiz-option" data-question="module3-q1" data-answer="c">c) Risco de explosão.</div></div><p id="explanation-module3-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Um vazamento de gás em uma refinaria representa um risco iminente e grave de quê?</p><div class="quiz-options-group" data-module-id="module3"><div class="quiz-option" data-question="module3-q2" data-answer="a">a) Inundação.</div><div class="quiz-option" data-question="module3-q2" data-answer="b">b) Explosão.</div><div class="quiz-option" data-question="module3-q2" data-answer="c">c) Desmoronamento.</div></div><p id="explanation-module3-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Qual porcentagem de incêndios industriais está relacionada a inflamáveis mal armazenados?</p><div class="quiz-options-group" data-module-id="module3"><div class="quiz-option" data-question="module3-q3" data-answer="a">a) 10%.</div><div class="quiz-option" data-question="module3-q3" data-answer="b">b) 25%.</div><div class="quiz-option" data-question="module3-q3" data-answer="c">c) 50%.</div></div><p id="explanation-module3-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. Em qual tipo de instalação industrial o bombeiro deve estar especialmente atento a riscos químicos e de explosão?</p><div class="quiz-options-group" data-module-id="module3"><div class="quiz-option" data-question="module3-q4" data-answer="a">a) Em escritórios comerciais.</div><div class="quiz-option" data-question="module3-q4" data-answer="b">b) Em escolas.</div><div class="quiz-option" data-question="module3-q4" data-answer="c">c) Em refinarias.</div></div><p id="explanation-module3-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Para que ocorra uma explosão, além da fonte de ignição, o que é necessário?</p><div class="quiz-options-group" data-module-id="module3"><div class="quiz-option" data-question="module3-q5" data-answer="a">a) A ausência de oxigênio.</div><div class="quiz-option" data-question="module3-q5" data-answer="b">b) O acúmulo de vapores inflamáveis, geralmente em ambiente confinado.</div><div class="quiz-option" data-question="module3-q5" data-answer="c">c) A presença de água no local.</div></div><p id="explanation-module3-q5" class="explanation hidden"></p>` 
+            },
+            module4: { 
+                id: "module4", 
+                title: "4. Fontes de Ignição: Identificação e Controle de Gatilhos", 
+                iconClass: "fas fa-fire", 
+                content: `<p>Não há fogo ou explosão sem um gatilho. Este módulo é inteiramente dedicado a identificar e controlar as fontes de ignição, que são o componente final do triângulo do fogo. Controlá-las é uma das medidas preventivas mais eficazes.</p><p>As fontes de ignição mais comuns em ambientes industriais incluem:</p><ul><li>Faíscas: Podem ser geradas por ferramentas elétricas, atrito entre metais, ou descargas de eletricidade estática.</li><li>Superfícies Quentes: Motores, escapamentos de veículos, tubulações de vapor e equipamentos de solda podem atingir temperaturas suficientes para inflamar os vapores.</li><li>Chamas Abertas: Isqueiros, fósforos, maçaricos de corte e solda.</li></ul><p>O perigo é real e muitas vezes subestimado. O Estudo de Caso 2 apresentado no material ilustra isso perfeitamente: um incêndio em um tanque foi iniciado pela faísca gerada por uma ferramenta durante um serviço de manutenção. Essa lição é clara: o controle de fontes de ignição em áreas com inflamáveis não é opcional, é uma regra de sobrevivência.</p><p>Para o bombeiro, isso significa que ao entrar em uma zona de risco com vazamento de gás ou líquido inflamável, é preciso garantir que nenhuma nova fonte de ignição seja introduzida, seja por equipamentos da equipe de resgate ou por ações inadvertidas.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. Qual das seguintes opções é considerada uma fonte de ignição?</p><div class="quiz-options-group" data-module-id="module4"><div class="quiz-option" data-question="module4-q1" data-answer="a">a) Água pressurizada.</div><div class="quiz-option" data-question="module4-q1" data-answer="b">b) Faíscas geradas por atrito ou eletricidade.</div><div class="quiz-option" data-question="module4-q1" data-answer="c">c) Piso molhado.</div></div><p id="explanation-module4-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. No estudo de caso sobre o incêndio em um tanque, o que causou a ignição?</p><div class="quiz-options-group" data-module-id="module4"><div class="quiz-option" data-question="module4-q2" data-answer="a">a) Uma sobrecarga na rede elétrica.</div><div class="quiz-option" data-question="module4-q2" data-answer="b">b) Um vazamento de água.</div><div class="quiz-option" data-question="module4-q2" data-answer="c">c) Uma faísca gerada por uma ferramenta.</div></div><p id="explanation-module4-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Qual é a principal lição aprendida com o caso do incêndio por faísca?</p><div class="quiz-options-group" data-module-id="module4"><div class="quiz-option" data-question="module4-q3" data-answer="a">a) A necessidade de usar mais EPIs.</div><div class="quiz-option" data-question="module4-q3" data-answer="b">b) A importância crítica de controlar as fontes de ignição.</div><div class="quiz-option" data-question="module4-q3" data-answer="c">c) A obrigação de reduzir a temperatura dos tanques.</div></div><p id="explanation-module4-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. Superfícies quentes de motores e equipamentos representam qual tipo de perigo em áreas com inflamáveis?</p><div class="quiz-options-group" data-module-id="module4"><div class="quiz-option" data-question="module4-q4" data-answer="a">a) Risco ergonômico.</div><div class="quiz-option" data-question="module4-q4" data-answer="b">b) Risco de fonte de ignição.</div><div class="quiz-option" data-question="module4-q4" data-answer="c">c) Risco de queda.</div></div><p id="explanation-module4-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Qual ação preventiva é fundamental para evitar a ignição acidental de vapores em tanques?</p><div class="quiz-options-group" data-module-id="module4"><div class="quiz-option" data-question="module4-q5" data-answer="a">a) Aumentar a umidade do ar.</div><div class="quiz-option" data-question="module4-q5" data-answer="b">b) Reduzir a iluminação do local.</div><div class="quiz-option" data-question="module4-q5" data-answer="c">c) Controlar e eliminar faíscas e outras fontes de calor.</div></div><p id="explanation-module4-q5" class="explanation hidden"></p>` 
+            },
+            module5: { 
+                id: "module5", 
+                title: "5. Medidas Preventivas: Ventilação e Sinalização", 
+                iconClass: "fas fa-wind", 
+                content: `<p>Agir antes que o desastre aconteça é a essência da prevenção. Este módulo foca em duas medidas preventivas cruciais exigidas pela NR-20, em seu item 20.13: ventilação e sinalização.</p><p>A ventilação é fundamental para evitar o acúmulo de vapores inflamáveis, que é o primeiro passo para uma explosão. Em locais como tanques de combustível ou áreas de armazenamento, a ventilação forçada é uma medida de engenharia utilizada para dispersar esses gases, mantendo a concentração abaixo do limite de inflamabilidade. A falha nesse sistema foi a causa da explosão na refinaria analisada no Estudo de Caso 1, onde um vazamento de gasolina ocorreu sem a ventilação adequada.</p><p>A sinalização é a forma de comunicação de risco no ambiente. A norma torna obrigatória a presença de sinalização clara em todas as áreas de armazenamento e manuseio de inflamáveis. Placas como "Perigo: Inflamável" e "Proibido Fumar" não são meras sugestões, são ordens de segurança que visam controlar as fontes de ignição.</p><p>Para o bombeiro que chega a uma emergência, a verificação dessas medidas preventivas é parte da avaliação do cenário. A ausência de ventilação ou de sinalização em um posto de gasolina, por exemplo, eleva drasticamente o nível de perigo da operação.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. Qual medida preventiva é essencial para evitar o acúmulo de gases inflamáveis em um ambiente?</p><div class="quiz-options-group" data-module-id="module5"><div class="quiz-option" data-question="module5-q1" data-answer="a">a) A iluminação extra do local.</div><div class="quiz-option" data-question="module5-q1" data-answer="b">b) A ventilação forçada.</div><div class="quiz-option" data-question="module5-q1" data-answer="c">c) A redução da temperatura ambiente.</div></div><p id="explanation-module5-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. O que a NR-20 exige que seja feito de forma clara em todas as áreas de armazenamento de inflamáveis?</p><div class="quiz-options-group" data-module-id="module5"><div class="quiz-option" data-question="module5-q2" data-answer="a">a) A instalação de barreiras metálicas.</div><div class="quiz-option" data-question="module5-q2" data-answer="b">b) A instalação de sensores de movimento.</div><div class="quiz-option" data-question="module5-q2" data-answer="c">c) A instalação de sinalização de segurança.</div></div><p id="explanation-module5-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. A explosão na refinaria do Estudo de Caso 1 foi causada por qual falha principal?</p><div class="quiz-options-group" data-module-id="module5"><div class="quiz-option" data-question="module5-q3" data-answer="a">a) Falha na rede elétrica.</div><div class="quiz-option" data-question="module5-q3" data-answer="b">b) Queda de material sobre o tanque.</div><div class="quiz-option" data-question="module5-q3" data-answer="c">c) Vazamento de gasolina sem ventilação adequada.</div></div><p id="explanation-module5-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. O que a equipe de bombeiros deve verificar ao chegar a uma emergência em um posto de gasolina?</p><div class="quiz-options-group" data-module-id="module5"><div class="quiz-option" data-question="module5-q4" data-answer="a">a) Os custos operacionais do estabelecimento.</div><div class="quiz-option" data-question="module5-q4" data-answer="b">b) Os planos de manutenção dos equipamentos.</div><div class="quiz-option" data-question="module5-q4" data-answer="c">c) As medidas preventivas existentes, como ventilação e sinalização.</div></div><p id="explanation-module5-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Qual item da NR-20 regula a implementação de medidas preventivas como a ventilação?</p><div class="quiz-options-group" data-module-id="module5"><div class="quiz-option" data-question="module5-q5" data-answer="a">a) Item 20.1.</div><div class="quiz-option" data-question="module5-q5" data-answer="b">b) Item 20.13.</div><div class="quiz-option" data-question="module5-q5" data-answer="c">c) Item 20.5.</div></div><p id="explanation-module5-q5" class="explanation hidden"></p>` 
+            },
+            module6: { 
+                id: "module6", 
+                title: "6. Normas para Armazenamento Seguro: Tanques e Recipientes", 
+                iconClass: "fas fa-box", 
+                content: `<p>O armazenamento inadequado é a causa de 25% dos incêndios industriais com inflamáveis. Este módulo detalha as normas para o armazenamento seguro, focando em tanques e recipientes, conforme o Anexo III da NR-20.</p><p>A principal exigência para tanques de armazenamento é a presença de sistemas de contenção, projetados para conter vazamentos e evitar que o líquido inflamável se espalhe. Um exemplo prático são as barreiras de contenção (bacias) construídas ao redor de grandes tanques industriais ou nos postos de gasolina, que evitam a dispersão do líquido em caso de falha no tanque.</p><p>Além disso, os recipientes devem ser apropriados para o tipo de material que contêm, devidamente identificados e armazenados em locais com boa ventilação e longe de fontes de ignição.</p><p>Para o bombeiro, a verificação da conformidade desses sistemas de armazenamento é uma parte crucial da prevenção de acidentes e da avaliação de risco durante uma emergência. Um sistema de contenção íntegro pode ser a diferença entre um pequeno vazamento controlado e um derramamento de grandes proporções que ameaça uma área inteira.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. Qual sistema é obrigatório para tanques de armazenamento de inflamáveis para conter possíveis vazamentos?</p><div class="quiz-options-group" data-module-id="module6"><div class="quiz-option" data-question="module6-q1" data-answer="a">a) Sensores de movimento.</div><div class="quiz-option" data-question="module6-q1" data-answer="b">b) Sistemas de contenção.</div><div class="quiz-option" data-question="module6-q1" data-answer="c">c) Iluminação de emergência extra.</div></div><p id="explanation-module6-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Qual anexo da NR-20 regula as normas para armazenamento seguro?</p><div class="quiz-options-group" data-module-id="module6"><div class="quiz-option" data-question="module6-q2" data-answer="a">a) Anexo I.</div><div class="quiz-option" data-question="module6-q2" data-answer="b">b) Anexo II.</div><div class="quiz-option" data-question="module6-q2" data-answer="c">c) Anexo III.</div></div><p id="explanation-module6-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. O que as barreiras de contenção ao redor de tanques evitam em caso de falha?</p><div class="quiz-options-group" data-module-id="module6"><div class="quiz-option" data-question="module6-q3" data-answer="a">a) A entrada de poeira.</div><div class="quiz-option" data-question="module6-q3" data-answer="b">b) A dispersão do líquido inflamável.</div><div class="quiz-option" data-question="module6-q3" data-answer="c">c) O ruído excessivo.</div></div><p id="explanation-module6-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. Qual porcentagem de incêndios industriais é causada por armazenamento inadequado?</p><div class="quiz-options-group" data-module-id="module6"><div class="quiz-option" data-question="module6-q4" data-answer="a">a) 10%.</div><div class="quiz-option" data-question="module6-q4" data-answer="b">b) 50%.</div><div class="quiz-option" data-question="module6-q4" data-answer="c">c) 25%.</div></div><p id="explanation-module6-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. O que os recipientes para armazenamento de inflamáveis devem ser?</p><div class="quiz-options-group" data-module-id="module6"><div class="quiz-option" data-question="module6-q5" data-answer="a">a) Feitos de madeira.</div><div class="quiz-option" data-question="module6-q5" data-answer="b">b) Apropriados para o material, identificados e armazenados longe de ignição.</div><div class="quiz-option" data-question="module6-q5" data-answer="c">c) Armazenados em locais sem ventilação.</div></div><p id="explanation-module6-q5" class="explanation hidden"></p>` 
+            },
+            module7: { 
+                id: "module7", 
+                title: "7. Procedimentos de Emergência: Resgate em Áreas de Inflamáveis", 
+                iconClass: "fas fa-ambulance", 
+                content: `<p>Este módulo foca nos procedimentos de emergência para resgates em áreas com inflamáveis, enfatizando a coordenação para garantir a segurança da equipe e das vítimas.</p><p>Em uma emergência, o bombeiro deve:</p><ul><li>Avaliar o Cenário: Identificar vazamentos, fontes de ignição e áreas de risco de explosão.</li><li>Cortar Energia: Garantir o corte remoto de energia para evitar ignições.</li><li>Evacuar a Área: Priorizar a evacuação de pessoas em risco, usando rotas seguras.</li><li>Usar EPIs Adequados: Utilizar equipamentos resistentes a fogo e explosões.</li></ul><p>Um estudo de caso de vazamento em tanque destaca a importância de ventilação e contenção para controlar o risco durante o resgate.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. Qual é a primeira ação em um resgate com inflamáveis?</p><div class="quiz-options-group" data-module-id="module7"><div class="quiz-option" data-question="module7-q1" data-answer="a">a) Entrar imediatamente no local.</div><div class="quiz-option" data-question="module7-q1" data-answer="b">b) Avaliar o cenário para identificar riscos.</div><div class="quiz-option" data-question="module7-q1" data-answer="c">c) Ligar para o suporte técnico.</div></div><p id="explanation-module7-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. O que deve ser garantido para evitar ignições em emergências?</p><div class="quiz-options-group" data-module-id="module7"><div class="quiz-option" data-question="module7-q2" data-answer="a">a) Aumento da temperatura.</div><div class="quiz-option" data-question="module7-q2" data-answer="b">b) Corte remoto de energia.</div><div class="quiz-option" data-question="module7-q2" data-answer="c">c) Uso de ferramentas metálicas.</div></div><p id="explanation-module7-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Qual é a prioridade ao evacuar uma área com vazamento?</p><div class="quiz-options-group" data-module-id="module7"><div class="quiz-option" data-question="module7-q3" data-answer="a">a) Salvar equipamentos.</div><div class="quiz-option" data-question="module7-q3" data-answer="b">b) Usar rotas seguras.</div><div class="quiz-option" data-question="module7-q3" data-answer="c">c) Registrar o incidente.</div></div><p id="explanation-module7-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. O que o estudo de caso de vazamento em tanque destaca?</p><div class="quiz-options-group" data-module-id="module7"><div class="quiz-option" data-question="module7-q4" data-answer="a">a) Falta de treinamento.</div><div class="quiz-option" data-question="module7-q4" data-answer="b">b) Importância de ventilação e contenção.</div><div class="quiz-option" data-question="module7-q4" data-answer="c">c) Uso incorreto de EPIs.</div></div><p id="explanation-module7-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Quais EPIs são essenciais em resgates com inflamáveis?</p><div class="quiz-options-group" data-module-id="module7"><div class="quiz-option" data-question="module7-q5" data-answer="a">a) Equipamentos resistentes a fogo e explosões.</div><div class="quiz-option" data-question="module7-q5" data-answer="b">b) Capacetes comuns.</div><div class="quiz-option" data-question="module7-q5" data-answer="c">c) Luvas de algodão.</div></div><p id="explanation-module7-q5" class="explanation hidden"></p>` 
+            },
+            module8: { 
+                id: "module8", 
+                title: "8. Treinamentos e Responsabilidades Legais", 
+                iconClass: "fas fa-gavel", 
+                content: `<p>Este módulo aborda as responsabilidades legais na NR-20 e a importância do treinamento contínuo para bombeiros e trabalhadores em ambientes com inflamáveis.</p><p>A norma define obrigações claras:</p><ul><li>Empregadores: Garantir treinamento, EPIs e medidas preventivas.</li><li>Trabalhadores: Cumprir procedimentos e reportar riscos.</li></ul><p>Para bombeiros, o treinamento básico da NR-20 é essencial para operações seguras. A falha em treinamento pode levar a acidentes graves, como em casos de vazamentos não gerenciados corretamente.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. De quem é a responsabilidade de fornecer treinamento sobre NR-20?</p><div class="quiz-options-group" data-module-id="module8"><div class="quiz-option" data-question="module8-q1" data-answer="a">a) Dos bombeiros civis.</div><div class="quiz-option" data-question="module8-q1" data-answer="b">b) Dos empregadores.</div><div class="quiz-option" data-question="module8-q1" data-answer="c">c) Dos fornecedores de inflamáveis.</div></div><p id="explanation-module8-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Qual nível de treinamento da NR-20 é adequado para bombeiros civis?</p><div class="quiz-options-group" data-module-id="module8"><div class="quiz-option" data-question="module8-q2" data-answer="a">a) Avançado.</div><div class="quiz-option" data-question="module8-q2" data-answer="b">b) Intermediário.</div><div class="quiz-option" data-question="module8-q2" data-answer="c">c) Básico.</div></div><p id="explanation-module8-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. O que os trabalhadores devem fazer conforme a norma?</p><div class="quiz-options-group" data-module-id="module8"><div class="quiz-option" data-question="module8-q3" data-answer="a">a) Ignorar riscos para manter a produção.</div><div class="quiz-option" data-question="module8-q3" data-answer="b">b) Cumprir procedimentos e reportar riscos.</div><div class="quiz-option" data-question="module8-q3" data-answer="c">c) Realizar manutenções sem treinamento.</div></div><p id="explanation-module8-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. A falha em treinamento pode levar a quê?</p><div class="quiz-options-group" data-module-id="module8"><div class="quiz-option" data-question="module8-q4" data-answer="a">a) Aumento da produção.</div><div class="quiz-option" data-question="module8-q4" data-answer="b">b) Acidentes graves por falta de conhecimento.</div><div class="quiz-option" data-question="module8-q4" data-answer="c">c) Redução de custos operacionais.</div></div><p id="explanation-module8-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Qual item da NR-20 enfatiza a necessidade de treinamento?</p><div class="quiz-options-group" data-module-id="module8"><div class="quiz-option" data-question="module8-q5" data-answer="a">a) Item 20.1.</div><div class="quiz-option" data-question="module8-q5" data-answer="b">b) Item 20.13.</div><div class="quiz-option" data-question="module8-q5" data-answer="c">c) Item 20.5.</div></div><p id="explanation-module8-q5" class="explanation hidden"></p>` 
+            },
+            module9: { 
+                id: "module9", 
+                title: "9. Estudos de Caso: Acidentes e Lições com Inflamáveis", 
+                iconClass: "fas fa-book", 
+                content: `<p>Este módulo analisa casos reais de acidentes com inflamáveis para extrair lições valiosas. Aprender com erros alheios é essencial para evitar repeti-los.</p><p>Estudo de Caso 1: Explosão em Refinaria por Falha em Ventilação. Uma explosão ocorreu devido a um vazamento sem ventilação adequada, destacando o item 20.13. Lição: A ventilação é crucial para dispersar vapores.</p><p>Estudo de Caso 2: Incêndio em Tanque por Faísca de Ferramenta. Um incêndio foi iniciado por uma faísca durante manutenção, violando controles de ignição. Lição: Controle estrito de fontes de ignição é vital.</p><p>Para bombeiros, esses casos reforçam a necessidade de avaliação rápida e procedimentos preventivos em resgates.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. No Estudo de Caso 1, o que causou a explosão na refinaria?</p><div class="quiz-options-group" data-module-id="module9"><div class="quiz-option" data-question="module9-q1" data-answer="a">a) Falha na sinalização.</div><div class="quiz-option" data-question="module9-q1" data-answer="b">b) Queda de material.</div><div class="quiz-option" data-question="module9-q1" data-answer="c">c) Vazamento sem ventilação adequada.</div></div><p id="explanation-module9-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Qual foi a lição do Estudo de Caso 2 sobre incêndio em tanque?</p><div class="quiz-options-group" data-module-id="module9"><div class="quiz-option" data-question="module9-q2" data-answer="a">a) Aumentar a ventilação.</div><div class="quiz-option" data-question="module9-q2" data-answer="b">b) Controle estrito de fontes de ignição.</div><div class="quiz-option" data-question="module9-q2" data-answer="c">c) Uso de mais EPIs.</div></div><p id="explanation-module9-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Qual item da NR-20 é destacado no caso de falha em ventilação?</p><div class="quiz-options-group" data-module-id="module9"><div class="quiz-option" data-question="module9-q3" data-answer="a">a) Item 20.1.</div><div class="quiz-option" data-question="module9-q3" data-answer="b">b) Item 20.5.</div><div class="quiz-option" data-question="module9-q3" data-answer="c">c) Item 20.13.</div></div><p id="explanation-module9-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. O que os estudos de caso reforçam para os bombeiros?</p><div class="quiz-options-group" data-module-id="module9"><div class="quiz-option" data-question="module9-q4" data-answer="a">a) Ignorar procedimentos preventivos.</div><div class="quiz-option" data-question="module9-q4" data-answer="b">b) A necessidade de avaliação rápida e procedimentos preventivos.</div><div class="quiz-option" data-question="module9-q4" data-answer="c">c) Prioridade em resgates sem planejamento.</div></div><p id="explanation-module9-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. Qual é a causa de muitos acidentes com inflamáveis, conforme os casos?</p><div class="quiz-options-group" data-module-id="module9"><div class="quiz-option" data-question="module9-q5" data-answer="a">a) Falta de treinamento.</div><div class="quiz-option" data-question="module9-q5" data-answer="b">b) Armazenamento inadequado.</div><div class="quiz-option" data-question="module9-q5" data-answer="c">c) Falhas em medidas preventivas como ventilação e controle de ignição.</div></div><p id="explanation-module9-q5" class="explanation hidden"></p>` 
+            },
+            module10: { 
+                id: "module10", 
+                title: "10. Certificação e Responsabilidades Legais", 
+                iconClass: "fas fa-certificate", 
+                content: `<p>Este módulo final aborda as responsabilidades legais na NR-20 e o processo de certificação, consolidando sua capacitação teórica.</p><p>A norma define obrigações claras:</p><ul><li>Empregadores: Garantir medidas preventivas, treinamento e EPIs.</li><li>Trabalhadores: Cumprir procedimentos e reportar riscos.</li></ul><p>Ao concluir este curso, você receberá um certificado "Curso Teórico" após aprovação mínima de 80% na prova final, assinado por um técnico em segurança do trabalho. Isso comprova sua capacitação teórica para atuar em ambientes com inflamáveis.</p><hr class="my-6 border-gray-300"><h3 class="text-xl font-semibold mb-4 text-blue-700">Exercícios de Fixação</h3><p class="font-semibold mb-2">1. De quem é a responsabilidade de fornecer treinamento sobre NR-20?</p><div class="quiz-options-group" data-module-id="module10"><div class="quiz-option" data-question="module10-q1" data-answer="a">a) Dos bombeiros civis.</div><div class="quiz-option" data-question="module10-q1" data-answer="b">b) Dos fornecedores de inflamáveis.</div><div class="quiz-option" data-question="module10-q1" data-answer="c">c) Dos empregadores.</div></div><p id="explanation-module10-q1" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">2. Qual é a taxa mínima de aprovação para obter o certificado deste curso?</p><div class="quiz-options-group" data-module-id="module10"><div class="quiz-option" data-question="module10-q2" data-answer="a">a) 50%.</div><div class="quiz-option" data-question="module10-q2" data-answer="b">b) 100%.</div><div class="quiz-option" data-question="module10-q2" data-answer="c">c) 80%.</div></div><p id="explanation-module10-q2" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">3. Quem assina o certificado de conclusão do curso?</p><div class="quiz-options-group" data-module-id="module10"><div class="quiz-option" data-question="module10-q3" data-answer="a">a) Um técnico em segurança do trabalho.</div><div class="quiz-option" data-question="module10-q3" data-answer="b">b) Um engenheiro químico.</div><div class="quiz-option" data-question="module10-q3" data-answer="c">c) Um gerente de produção.</div></div><p id="explanation-module10-q3" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">4. O que os trabalhadores devem fazer conforme a norma?</p><div class="quiz-options-group" data-module-id="module10"><div class="quiz-option" data-question="module10-q4" data-answer="a">a) Ignorar riscos para manter a produção.</div><div class="quiz-option" data-question="module10-q4" data-answer="b">b) Realizar manutenções sem treinamento.</div><div class="quiz-option" data-question="module10-q4" data-answer="c">c) Cumprir procedimentos e reportar riscos.</div></div><p id="explanation-module10-q4" class="explanation hidden"></p><p class="font-semibold mt-4 mb-2">5. O que o certificado emitido ao final deste curso comprova?</p><div class="quiz-options-group" data-module-id="module10"><div class="quiz-option" data-question="module10-q5" data-answer="a">a) Uma habilitação prática para manuseio de inflamáveis.</div><div class="quiz-option" data-question="module10-q5" data-answer="b">b) Uma capacitação teórica sobre segurança com inflamáveis.</div><div class="quiz-option" data-question="module10-q5" data-answer="c">c) Experiência profissional em resgates.</div></div><p id="explanation-module10-q5" class="explanation hidden"></p>` 
+            },
+            finalExam: { 
+                id: "finalExam", 
+                title: "Prova Final - NR-20", 
+                iconClass: "fas fa-graduation-cap", 
+                content: `<p>Você concluiu todos os módulos do curso! Agora é hora de testar seus conhecimentos com a prova final. Você precisa de no mínimo 6 acertos para ser aprovado.</p><div id="exam-questions" class="mt-6"></div><div id="exam-result" class="mt-6 text-lg font-semibold"></div><div class="mt-8 pt-6 border-t border-gray-200 text-right"><button id="submit-exam-button" class="action-button">Corrigir Prova</button><button id="retake-exam-button" class="action-button hidden ml-4">Fazer Novamente</button></div>` 
+            }
+        };
+
+        const finalExamQuestions = [
+            { question: "Qual é o objetivo principal da NR-20?", options: ["Estabelecer requisitos para segurança com inflamáveis e combustíveis", "Definir os procedimentos para controle de máquinas pesadas", "Padronizar as normas de ergonomia em ambientes de trabalho"], correct: "a" },
+            { question: "O que é 'ponto de fulgor'?", options: ["A temperatura em que um líquido ferve", "A menor temperatura em que um líquido libera vapores para formar uma mistura inflamável", "A temperatura máxima que um material pode atingir antes de explodir"], correct: "b" },
+            { question: "De acordo com o item 20.1.2, qual é um dos principais riscos associados a inflamáveis?", options: ["Risco de queda", "Risco de ruído", "Risco de explosão"], correct: "c" },
+            { question: "Qual das seguintes opções é considerada uma fonte de ignição?", options: ["Água pressurizada", "Faíscas geradas por atrito ou eletricidade", "Piso molhado"], correct: "b" },
+            { question: "Qual medida preventiva é essencial para evitar o acúmulo de gases inflamáveis em um ambiente?", options: ["A iluminação extra do local", "A ventilação forçada", "A redução da temperatura ambiente"], correct: "b" },
+            { question: "Qual sistema é obrigatório para tanques de armazenamento de inflamáveis para conter possíveis vazamentos?", options: ["Sensores de movimento", "Sistemas de contenção", "Iluminação de emergência extra"], correct: "b" },
+            { question: "Qual é a primeira ação em um resgate com inflamáveis?", options: ["Entrar imediatamente no local", "Avaliar o cenário para identificar riscos", "Ligar para o suporte técnico"], correct: "b" },
+            { question: "De quem é a responsabilidade de fornecer treinamento sobre NR-20?", options: ["Dos bombeiros civis", "Dos empregadores", "Dos fornecedores de inflamáveis"], correct: "b" },
+            { question: "No Estudo de Caso 1, o que causou a explosão na refinaria?", options: ["Falha na rede elétrica", "Queda de material sobre o tanque", "Vazamento sem ventilação adequada"], correct: "c" },
+            { question: "O que o certificado emitido ao final deste curso comprova?", options: ["Uma habilitação prática para manuseio de inflamáveis", "Uma capacitação teórica sobre segurança com inflamáveis", "Experiência profissional em resgates"], correct: "b" },
+        ];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const contentArea = document.getElementById('content-area');
+            const moduleSelector = document.getElementById('module-selector');
+
+            // Verifica se os elementos essenciais estão presentes
+            if (!contentArea || !moduleSelector) {
+                console.error('Erro: Elementos #content-area ou #module-selector não encontrados no DOM.');
+                return;
+            }
+
+            // Adiciona o botão de concluir dinamicamente para os módulos
+            for (const moduleId in moduleContent) {
+                if (moduleContent.hasOwnProperty(moduleId) && moduleId.startsWith('module')) {
+                    moduleContent[moduleId].content += `<div class="mt-8 pt-6 border-t border-gray-200 text-right"><button id="conclude-btn-${moduleId}" class="action-button conclude-button" data-module="${moduleId}" disabled>Concluir Módulo</button></div>`;
+                }
+            }
+
+            function populateModuleSelector() {
+                console.log('Populando seletor de módulos...');
+                moduleSelector.innerHTML = '<option value="">Escolha um Módulo</option>'; // Reseta o seletor
+                Object.values(moduleContent).forEach(module => {
+                    if (module.id) {
+                        const option = document.createElement('option');
+                        option.value = module.id;
+                        option.textContent = module.title;
+                        if (module.id === 'finalExam') {
+                            option.id = 'final-exam-option';
+                            option.disabled = true;
+                        }
+                        moduleSelector.appendChild(option);
+                    }
+                });
+                console.log('Seletor de módulos preenchido com', moduleSelector.options.length - 1, 'módulos.');
+            }
+
+            function updateProgress() {
+                const moduleCompletions = completedModules.filter(id => id.startsWith('module')).length;
+                const progress = totalModules > 0 ? (moduleCompletions / totalModules) * 100 : 0;
+                document.getElementById('progress-text').textContent = `${progress.toFixed(0)}%`;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+                localStorage.setItem('gateBombeiroNR20CompletedModules', JSON.stringify(completedModules));
+
+                const finalExamOption = document.getElementById('final-exam-option');
+                if (finalExamOption) {
+                    if (moduleCompletions >= totalModules) {
+                        finalExamOption.disabled = false;
+                        if (!finalExamOption.textContent.includes('(Liberada!)')) {
+                            finalExamOption.textContent += " (Liberada!)";
+                        }
+                    } else {
+                        finalExamOption.disabled = true;
+                        finalExamOption.textContent = "Prova Final - NR-20";
+                    }
+                }
+            }
+
+            function markModuleCompleted(moduleId) {
+                if (!completedModules.includes(moduleId)) {
+                    completedModules.push(moduleId);
+                    updateProgress();
+                    console.log(`Módulo ${moduleId} marcado como concluído.`);
+                }
+            }
+
+            function checkModuleStatus(moduleId) {
+                if (!moduleId || !moduleContent[moduleId]) {
+                    console.error(`Erro: Módulo ${moduleId} não encontrado.`);
+                    return;
+                }
+
+                const concludeButton = document.getElementById(`conclude-btn-${moduleId}`);
+                if (!concludeButton || completedModules.includes(moduleId)) {
+                    if (concludeButton) {
+                        concludeButton.disabled = true;
+                        concludeButton.textContent = 'Módulo Concluído';
+                    }
+                    return;
+                }
+
+                // Habilitar o botão imediatamente
+                concludeButton.disabled = false;
+                const moduleNumber = moduleContent[moduleId].title.split('.')[0];
+                concludeButton.textContent = `Concluir Módulo ${moduleNumber}`;
+            }
+
+            function setupQuizListeners(moduleId) {
+                const moduleGroups = contentArea.querySelectorAll(`.quiz-options-group[data-module-id="${moduleId}"]`);
+                moduleGroups.forEach(group => {
+                    const options = group.querySelectorAll('.quiz-option:not([data-listener-added])');
+                    options.forEach(option => {
+                        option.setAttribute('data-listener-added', 'true');
+                        option.addEventListener('click', () => {
+                            const questionId = option.dataset.question;
+                            if (option.disabled) return;
+
+                            const allOptionsInGroup = group.querySelectorAll(`.quiz-option[data-question="${questionId}"]`);
+                            allOptionsInGroup.forEach(opt => opt.disabled = true);
+
+                            const selectedAnswer = option.dataset.answer;
+                            const actualCorrectAnswer = correctAnswers[questionId];
+                            const explanationP = document.getElementById(`explanation-${questionId}`);
+
+                            if (selectedAnswer === actualCorrectAnswer) {
+                                option.classList.add('correct');
+                                explanationP.innerHTML = `<strong class="text-green-700">Correto!</strong>`;
+                                quizAnswers[questionId] = selectedAnswer;
+                            } else {
+                                option.classList.add('incorrect');
+                                const correctOptionEl = group.querySelector(`.quiz-option[data-answer="${actualCorrectAnswer}"]`);
+                                correctOptionEl.classList.add('correct');
+                                explanationP.innerHTML = `<strong class="text-red-700">Incorreto.</strong> A resposta correta foi destacada em verde.`;
+                                quizAnswers[questionId] = selectedAnswer;
+                            }
+                            explanationP.classList.remove('hidden');
+                            localStorage.setItem('gateBombeiroNR20QuizAnswers', JSON.stringify(quizAnswers));
+                            checkModuleStatus(moduleId);
+                        });
+                    });
+                });
+            }
+
+            function restoreQuizState(moduleId) {
+                const questionsInModule = Object.keys(correctAnswers).filter(key => key.startsWith(moduleId));
+                questionsInModule.forEach(qid => {
+                    if (quizAnswers[qid]) {
+                        const questionGroup = contentArea.querySelector(`.quiz-option[data-question="${qid}"]`)?.closest('.quiz-options-group');
+                        if (!questionGroup) return;
+
+                        const allOptionsInGroup = questionGroup.querySelectorAll(`.quiz-option[data-question="${qid}"]`);
+                        allOptionsInGroup.forEach(opt => {
+                            opt.disabled = true;
+                            if (opt.dataset.answer === correctAnswers[qid]) {
+                                opt.classList.add('correct');
+                            } else if (opt.dataset.answer === quizAnswers[qid]) {
+                                opt.classList.add('incorrect');
+                            }
+                        });
+
+                        const explanationP = document.getElementById(`explanation-${qid}`);
+                        if (explanationP) {
+                            explanationP.innerHTML = quizAnswers[qid] === correctAnswers[qid]
+                                ? `<strong class="text-green-700">Correto!</strong>`
+                                : `<strong class="text-red-700">Incorreto.</strong> A resposta correta foi destacada em verde.`;
+                            explanationP.classList.remove('hidden');
+                        }
+                    }
+                });
+            }
+
+            function setupConcludeButtonListener(moduleId) {
+                const button = document.getElementById(`conclude-btn-${moduleId}`);
+                if (button) {
+                    button.addEventListener('click', () => {
+                        markModuleCompleted(moduleId);
+                        button.disabled = true;
+                        button.textContent = 'Módulo Concluído';
+                    });
+                }
+            }
+
+            function loadModuleContent(moduleId) {
+                console.log(`Carregando conteúdo do módulo: ${moduleId || 'initial'}`);
+                if (!contentArea) {
+                    console.error('Erro: #content-area não encontrado.');
+                    return;
+                }
+                contentArea.classList.add('fade');
+                setTimeout(() => {
+                    const moduleData = moduleContent[moduleId] || moduleContent['initial'];
+                    contentArea.innerHTML = `<h2 class="text-2xl font-semibold mb-6 flex items-center text-blue-800"><i class="${moduleData.iconClass} mr-3 text-orange-500 fa-fw"></i>${moduleData.title}</h2><div>${moduleData.content}</div>`;
+                    
+                    if (moduleId && moduleId.startsWith('module')) {
+                        setupQuizListeners(moduleId);
+                        setupConcludeButtonListener(moduleId);
+                        restoreQuizState(moduleId);
+                        checkModuleStatus(moduleId);
+                    } else if (moduleId === 'finalExam') {
+                        renderFinalExam();
+                    }
+                    
+                    contentArea.classList.remove('fade');
+                    console.log(`Conteúdo do módulo ${moduleId || 'initial'} carregado com sucesso.`);
+                }, 300);
+            }
+
+            function renderFinalExam() {
+                const examContainer = document.getElementById('exam-questions');
+                examContainer.innerHTML = finalExamQuestions.map((q, index) => `
+                    <div class="mb-6">
+                        <p class="font-semibold mb-2">${index + 1}. ${q.question}</p>
+                        <div class="quiz-options-group" data-exam-question-id="${index}">
+                            ${q.options.map((opt, i) => `<div class="quiz-option" data-answer="${String.fromCharCode(97 + i)}">${String.fromCharCode(97 + i)}) ${opt}</div>`).join('')}
+                        </div>
+                    </div>
+                `).join('');
+                
+                examContainer.querySelectorAll('.quiz-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        if (option.parentElement.classList.contains('answered')) return;
+                        option.parentElement.querySelectorAll('.quiz-option').forEach(opt => opt.classList.remove('selected'));
+                        option.classList.add('selected');
+                    });
+                });
+
+                document.getElementById('submit-exam-button').addEventListener('click', gradeExam);
+                document.getElementById('retake-exam-button').addEventListener('click', renderFinalExam);
+            }
+
+            function gradeExam() {
+                let score = 0;
+                finalExamQuestions.forEach((q, index) => {
+                    const questionGroup = contentArea.querySelector(`.quiz-options-group[data-exam-question-id="${index}"]`);
+                    const selectedOption = questionGroup.querySelector('.quiz-option.selected');
+                    questionGroup.classList.add('answered');
+                    if (selectedOption) {
+                        if (selectedOption.dataset.answer === q.correct) {
+                            score++;
+                            selectedOption.classList.add('correct');
+                        } else {
+                            selectedOption.classList.add('incorrect');
+                            const correctOpt = questionGroup.querySelector(`.quiz-option[data-answer="${q.correct}"]`);
+                            if (correctOpt) correctOpt.classList.add('correct');
+                        }
+                    }
+                });
+
+                const resultContainer = document.getElementById('exam-result');
+                const retakeButton = document.getElementById('retake-exam-button');
+                document.getElementById('submit-exam-button').style.display = 'none';
+                
+                if (score >= 6) {
+                    resultContainer.innerHTML = `<span class="text-green-600">APROVADO!</span> Sua nota: ${score}/10.`;
+                    retakeButton.style.display = 'none';
+                    if (!completedModules.includes('finalExam')) {
+                        markModuleCompleted('finalExam');
+                        showCongratulations();
+                        launchConfetti();
+                        showCertificateForm();
+                    }
+                } else {
+                    resultContainer.innerHTML = `<span class="text-red-600">REPROVADO.</span> Sua nota: ${score}/10.`;
+                    retakeButton.classList.remove('hidden');
+                }
+            }
+
+            function showCongratulations() {
+                const congratsMessage = document.getElementById('congratulations-message');
+                congratsMessage.classList.remove('hidden');
+                setTimeout(() => congratsMessage.classList.add('show'), 100);
+            }
+
+            function launchConfetti() {
+                confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 }, zIndex: 9999 });
+            }
+
+            function showCertificateForm() {
+                const formContainer = document.getElementById('certificate-form-container');
+                formContainer.classList.add('show');
+                formContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            document.getElementById('close-congrats').addEventListener('click', () => {
+                document.getElementById('congratulations-message').classList.remove('show');
+            });
+
+            document.getElementById('submit-certificate').addEventListener('click', () => {
+                const name = document.getElementById('full-name').value;
+                const cpf = document.getElementById('cpf').value;
+                const email = document.getElementById('email').value;
+                if (name && cpf && email) {
+                    alert(`Solicitação enviada!\nNome: ${name}\nCPF: ${cpf}\nE-mail: ${email}\nEntraremos em contato em breve.`);
+                } else {
+                    alert('Por favor, preencha todos os campos obrigatórios.');
+                }
+            });
+
+            moduleSelector.addEventListener('change', (event) => {
+                loadModuleContent(event.target.value);
+            });
+
+            // Inicialização
+            console.log('Inicializando curso...');
+            populateModuleSelector();
+            updateProgress();
+            loadModuleContent('');
+        });
+    </script>
+</body>
+</html>
